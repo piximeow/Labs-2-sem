@@ -25,3 +25,29 @@ async function generateCSV(filePath, rows = 100000) {
 }
 
 module.exports = { generateCSV };
+
+const fs = require("fs");
+const readline = require("readline");
+
+async function* readCSV(filePath) {
+  const rl = readline.createInterface({
+    input: fs.createReadStream(filePath),
+    crlfDelay: Infinity,
+  });
+
+  let first = true;
+  for await (const line of rl) {
+    if (first) { first = false; continue; }
+    if (!line.trim()) continue;
+
+    const [id, product, price, quantity] = line.split(",");
+    yield {
+      id: Number(id),
+      product: product.trim(),
+      price: Number(price),
+      quantity: Number(quantity),
+    };
+  }
+}
+
+module.exports = { readCSV };
