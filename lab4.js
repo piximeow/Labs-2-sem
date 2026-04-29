@@ -77,3 +77,92 @@ class Heap {
     }
   }
 }
+
+class BiDirectionalPriorityQueue {
+  constructor() {
+    this.minHeap = new Heap((a, b) => a.priority - b.priority);
+    this.maxHeap = new Heap((a, b) => b.priority - a.priority);
+
+    this.head = null;
+    this.tail = null;
+
+    this.map = new Map();
+    this.counter = 0;
+  }
+
+  enqueue(item, priority) {
+    const node = new Node(item, priority, this.counter++);
+
+    this.map.set(node.id, node);
+    this.minHeap.push(node);
+    this.maxHeap.push(node);
+
+    if (!this.tail) {
+      this.head = this.tail = node;
+    } else {
+      this.tail.next = node;
+      node.prev = this.tail;
+      this.tail = node;
+    }
+  }
+
+  _cleanHeap(heap) {
+    while (heap.size() > 0) {
+      const node = heap.peek();
+      if (this.map.has(node.id)) return node;
+      heap.pop();
+    }
+    return null;
+  }
+
+  _removeNode(node) {
+    if (node.prev) node.prev.next = node.next;
+    else this.head = node.next;
+
+    if (node.next) node.next.prev = node.prev;
+    else this.tail = node.prev;
+
+    this.map.delete(node.id);
+  }
+
+  _resolveNode(type, pop) {
+    switch (type) {
+      case "highest": {
+        const node = this._cleanHeap(this.maxHeap);
+        if (node && pop) this.maxHeap.pop();
+        return node;
+      }
+      case "lowest": {
+        const node = this._cleanHeap(this.minHeap);
+        if (node && pop) this.minHeap.pop();
+        return node;
+      }
+      case "oldest":
+        return this.head;
+      case "newest":
+        return this.tail;
+      default:
+        throw new Error(`Unknown type: "${type}". Use highest | lowest | oldest | newest`);
+    }
+  }
+
+  peek(type) {
+    const node = this._resolveNode(type, false);
+    return node ? node.item : null;
+  }
+
+  dequeue(type) {
+    const node = this._resolveNode(type, true);
+    if (!node) return null;
+    this._removeNode(node);
+    return node.item;
+  }
+
+  isEmpty() {
+    return this.map.size === 0;
+  }
+
+  size() {
+    return this.map.size;
+  }
+}
