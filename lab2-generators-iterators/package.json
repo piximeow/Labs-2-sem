@@ -1,0 +1,8 @@
+{
+  "name": "lab2-generators-iterators",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "src/index.js",
+  "author": "Anna Polishchuk",
+  "license": "MIT"
+}
