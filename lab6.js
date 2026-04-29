@@ -51,3 +51,42 @@ async function* readCSV(filePath) {
 }
 
 module.exports = { readCSV };
+
+const fs = require("fs");
+const path = require("path");
+const { generateCSV } = require("./generate");
+const { readCSV } = require("./read");
+
+async function main() {
+  const file = path.join(__dirname, "data.csv");
+
+  await generateCSV(file, 100000);
+
+  const start = Date.now();
+  const stats = {};
+  let total = 0;
+
+  for await (const row of readCSV(file)) {
+    total++;
+
+    if (!stats[row.product]) {
+      stats[row.product] = { count: 0, totalRevenue: 0 };
+    }
+
+    stats[row.product].count++;
+    stats[row.product].totalRevenue += row.price * row.quantity;
+  }
+
+  const time = ((Date.now() - start) / 1000).toFixed(2);
+  console.log(`Processed: ${total} rows in ${time}s\n`);
+
+  for (const product in stats) {
+    const s = stats[product];
+    const avg = (s.totalRevenue / s.count).toFixed(2);
+    console.log(`${product}: count=${s.count}, avgRevenue=${avg}`);
+  }
+
+  fs.unlinkSync(file);
+}
+
+main().catch(console.error);
