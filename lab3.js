@@ -329,3 +329,15 @@ function memoize(fn, options = {}) {
     return result;
   };
 }
+
+const square = (n) => {
+  console.log("calc", n);
+  return n * n;
+};
+
+const m = memoize(square, { maxSize: 2, policy: "lru" });
+
+console.log(m(2));
+console.log(m(2));
+console.log(m(3));
+console.log(m(4));
