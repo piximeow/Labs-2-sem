@@ -80,26 +80,38 @@ async function main() {
 
   const start = Date.now();
   const stats = {};
-  let total = 0;
+  let totalRows = 0;
+  let totalBatches = 0;
 
-  for await (const row of readCSV(file)) {
-    total++;
+   const rows = readCSV(file);
+  const expensive = filter(rows, (r) => r.price > 500);
+  const withUAH = map(expensive, (r) => ({
+    ...r,
+    priceUAH: +(r.price * 41).toFixed(2),
+    revenueUAH: +(r.price * r.quantity * 41).toFixed(2),
+  }));
+  const batches = batch(withUAH, 1000);
 
-    if (!stats[row.product]) {
-      stats[row.product] = { count: 0, totalRevenue: 0 };
+  for await (const chunk of batches) {
+    totalBatches++;
+    for (const row of chunk) {
+      totalRows++;
+      if (!stats[row.product]) {
+        stats[row.product] = { count: 0, totalRevenue: 0 };
+      }
+      stats[row.product].count++;
+      stats[row.product].totalRevenue += row.revenueUAH;
     }
-
-    stats[row.product].count++;
-    stats[row.product].totalRevenue += row.price * row.quantity;
   }
 
   const time = ((Date.now() - start) / 1000).toFixed(2);
-  console.log(`Processed: ${total} rows in ${time}s\n`);
+  console.log(`Processed: ${totalRows} rows in ${time}s`);
+  console.log(`Batches: ${totalBatches}\n`);
 
   for (const product in stats) {
     const s = stats[product];
     const avg = (s.totalRevenue / s.count).toFixed(2);
-    console.log(`${product}: count=${s.count}, avgRevenue=${avg}`);
+    console.log(`${product}: count=${s.count}, avgRevenue=${avg} UAH`);
   }
 
   fs.unlinkSync(file);
