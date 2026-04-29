@@ -245,3 +245,87 @@ function memoize(fn, options = {}) {
     return result;
   };
 }
+
+function memoize(fn, options = {}) {
+  const {
+    maxSize = Infinity,
+    policy = "lru",
+    ttlMs = 60000,
+    customEvict
+  } = options;
+
+  const cache = new Map();
+
+  function isExpired(entry) {
+    return Date.now() - entry.time > ttlMs;
+  }
+
+  function evict() {
+    if (policy === "custom" && typeof customEvict === "function") {
+      customEvict(cache);
+      return;
+    }
+
+    if (policy === "lfu") {
+      let minKey = null;
+      let minFreq = Infinity;
+
+      for (const [key, entry] of cache.entries()) {
+        if (entry.freq < minFreq) {
+          minFreq = entry.freq;
+          minKey = key;
+        }
+      }
+
+      cache.delete(minKey);
+    } else if (policy === "ttl") {
+      for (const [key, entry] of cache.entries()) {
+        if (isExpired(entry)) {
+          cache.delete(key);
+        }
+      }
+
+      if (cache.size >= maxSize) {
+        const firstKey = cache.keys().next().value;
+        cache.delete(firstKey);
+      }
+    } else {
+      const firstKey = cache.keys().next().value;
+      cache.delete(firstKey);
+    }
+  }
+
+  return function (...args) {
+    const key = JSON.stringify(args);
+
+    if (cache.has(key)) {
+      const entry = cache.get(key);
+
+      if (policy === "ttl" && isExpired(entry)) {
+        cache.delete(key);
+      } else {
+        entry.freq++;
+        entry.time = Date.now();
+
+        if (policy === "lru") {
+          cache.delete(key);
+          cache.set(key, entry);
+        }
+
+        return entry.value;
+      }
+    }
+
+    if (cache.size >= maxSize) evict();
+
+    const result = fn(...args);
+
+    cache.set(key, {
+      value: result,
+      time: Date.now(),
+      freq: 1
+    });
+
+    return result;
+  };
+}
