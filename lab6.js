@@ -1,4 +1,6 @@
 const fs = require("fs");
+const path = require("path");
+const readline = require("readline");
 
 async function generateCSV(filePath, rows = 100000) {
   const products = ["Laptop", "Phone", "Tablet", "Monitor", "Keyboard"];
@@ -24,10 +26,6 @@ async function generateCSV(filePath, rows = 100000) {
   });
 }
 
-module.exports = { generateCSV };
-
-const fs = require("fs");
-const readline = require("readline");
 
 async function* readCSV(filePath) {
   const rl = readline.createInterface({
@@ -50,12 +48,30 @@ async function* readCSV(filePath) {
   }
 }
 
-module.exports = { readCSV };
+async function* filter(source, fn) {
+  for await (const item of source) {
+    if (fn(item)) yield item;
+  }
+}
 
-const fs = require("fs");
-const path = require("path");
-const { generateCSV } = require("./generate");
-const { readCSV } = require("./read");
+async function* map(source, fn) {
+  for await (const item of source) {
+    yield fn(item);
+  }
+}
+
+async function* batch(source, size) {
+  let buf = [];
+  for await (const item of source) {
+    buf.push(item);
+    if (buf.length >= size) {
+      yield buf;
+      buf = [];
+    }
+  }
+  if (buf.length) yield buf;
+}
+
 
 async function main() {
   const file = path.join(__dirname, "data.csv");
