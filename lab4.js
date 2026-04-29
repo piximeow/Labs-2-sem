@@ -166,3 +166,27 @@ class BiDirectionalPriorityQueue {
     return this.map.size;
   }
 }
+
+const pq = new BiDirectionalPriorityQueue();
+
+pq.enqueue("low task",    1);
+pq.enqueue("medium task", 5);
+pq.enqueue("high task",   10);
+pq.enqueue("urgent task", 8);
+pq.enqueue("tiny task",   2);
+
+console.log("=== peek (no removal) ===");
+console.log("highest:", pq.peek("highest"));
+console.log("lowest: ", pq.peek("lowest"));
+console.log("oldest: ", pq.peek("oldest"));
+console.log("newest: ", pq.peek("newest"));
+
+console.log("\n=== dequeue ===");
+console.log("highest:", pq.dequeue("highest"));
+console.log("lowest: ", pq.dequeue("lowest"));
+console.log("oldest: ", pq.dequeue("oldest"));
+console.log("newest: ", pq.dequeue("newest"));
+
+console.log("\nremaining size:", pq.size());
+console.log("last item:     ", pq.dequeue("highest"));
+console.log("isEmpty:       ", pq.isEmpty());
