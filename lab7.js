@@ -60,3 +60,60 @@ class Observable {
   }
 }
  
+class ChatUser {
+  #inbox = [];
+  #sub = null;
+ 
+  constructor(name, bus) {
+    this.name = name;
+    this.bus = bus;
+  }
+ 
+  joinChannel(channel) {
+    this.#sub?.unsubscribe();
+    this.#sub = this.bus.subscribe(channel, (msg) => {
+      if (msg.from !== this.name) {
+        this.#inbox.push(`[${channel}] ${msg.from}: ${msg.text}`);
+      }
+    });
+    this.currentChannel = channel;
+    return this;
+  }
+ 
+  leaveChannel() {
+    this.#sub?.unsubscribe();
+    this.#sub = null;
+    this.currentChannel = null;
+    return this;
+  }
+ 
+  send(text) {
+    if (!this.currentChannel) throw new Error(`${this.name} не в каналі`);
+    this.bus.emit(this.currentChannel, { from: this.name, text });
+    return this;
+  }
+ 
+  getInbox() {
+    return [...this.#inbox];
+  }
+ 
+  clearInbox() {
+    this.#inbox = [];
+  }
+}
+ 
+class LogBot {
+  #log = [];
+ 
+  constructor(bus) {
+    bus.subscribe("*", (msg) => {
+      if (msg && msg.from) {
+        this.#log.push(`${msg.from} → ${msg.text}`);
+      }
+    });
+  }
+ 
+  getLog() {
+    return [...this.#log];
+  }
+}
