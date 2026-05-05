@@ -117,3 +117,24 @@ class LogBot {
     return [...this.#log];
   }
 }
+
+const bus = new Observable();
+ 
+bus.use(({ channel, payload }) => ({
+  channel,
+  payload:
+    payload && typeof payload === "object"
+      ? { ...payload, ts: Date.now() }
+      : payload,
+}));
+ 
+const BANNED = ["spam", "bad"];
+bus.use(({ channel, payload }) => {
+  if (payload?.text) {
+    let text = payload.text;
+    BANNED.forEach((w) => {
+      text = text.replace(new RegExp(w, "gi"), "***");
+    });
+    return { channel, payload: { ...payload, text } };
+  }
+});
