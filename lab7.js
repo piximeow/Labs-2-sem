@@ -138,3 +138,32 @@ bus.use(({ channel, payload }) => {
     return { channel, payload: { ...payload, text } };
   }
 });
+
+const bot = new LogBot(bus);
+ 
+const alice = new ChatUser("Alice", bus).joinChannel("general");
+const bob   = new ChatUser("Bob",   bus).joinChannel("general");
+const carol = new ChatUser("Carol", bus).joinChannel("general");
+ 
+alice.send("Привіт усім!");
+bob.send("Привіт, Alice!");
+ 
+carol.leaveChannel();
+alice.send("Carol, ти тут?");
+ 
+bus.once("join", (name) => console.log(`[once] Перший новий учасник: ${name}`));
+bus.emit("join", "Dave");
+bus.emit("join", "Eve"); 
+ 
+alice.joinChannel("random");
+bob.joinChannel("random");
+alice.send("не пишіть spam тут");
+ 
+console.log("\n── Inbox Bob ──");
+bob.getInbox().forEach((m) => console.log(m));
+ 
+console.log("\n── Inbox Carol (вийшла до повідомлень Alice) ──");
+carol.getInbox().forEach((m) => console.log(m));
+ 
+console.log("\n── LogBot (всі канали) ──");
+bot.getLog().forEach((m) => console.log(m));
