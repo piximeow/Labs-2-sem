@@ -71,4 +71,25 @@ class OAuthAuth extends AuthStrategy {
     return { Authorization: `Bearer ${this._accessToken}` };
   }
 }
+
+class RateLimiter {
+  constructor(maxCalls, periodMs = 1000) {
+    this._maxCalls = maxCalls;
+    this._period = periodMs;
+    this._timestamps = [];
+  }
+ 
+  async acquire() {
+    const now = Date.now();
+    this._timestamps = this._timestamps.filter(t => now - t < this._period);
+ 
+    if (this._timestamps.length >= this._maxCalls) {
+      const sleepMs = this._period - (now - this._timestamps[0]);
+      console.warn(`[RateLimiter] Limit reached. Sleeping ${sleepMs}ms…`);
+      await new Promise(r => setTimeout(r, sleepMs));
+      this._timestamps.shift();
+    }
+    this._timestamps.push(Date.now());
+  }
+}
  
