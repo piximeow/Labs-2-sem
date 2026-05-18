@@ -49,3 +49,109 @@ class FileHandler {
     }
   }
 }
+
+function buildRecord({ level, fn, args, kwargs, result, error, elapsedMs }) {
+  return {
+    timestamp: new Date().toISOString().replace("T", " ").slice(0, 23),
+    level,
+    fn,
+    args,
+    kwargs,
+    result:    result  ?? undefined,
+    error:     error   ? String(error) : null,
+    elapsedMs: elapsedMs ?? undefined,
+  };
+}
+ 
+function emitAll(handlers, record) {
+  for (const h of handlers) h.emit(record);
+}
+
+function log({
+  level     = "INFO",
+  handlers  = [new ConsoleHandler()],
+  profile   = true,
+  condition = null,
+} = {}) {
+  const lvl = level.toUpperCase();
+ 
+  return function decorator(fn) {
+    const isAsync = fn.constructor.name === "AsyncFunction";
+    const name = fn.name || "anonymous";
+ 
+    function shouldLog(...args) {
+      return condition ? condition(...args) : true;
+    }
+ 
+
+    function syncWrapper(...args) {
+      const kwargs = {}; 
+      const t0 = profile ? performance.now() : null;
+ 
+      if (lvl === LogLevel.ERROR) {
+        try {
+          const result = fn(...args);
+          return result;
+        } catch (err) {
+          const elapsedMs = profile ? performance.now() - t0 : undefined;
+          if (shouldLog(...args)) {
+            emitAll(handlers, buildRecord({ level: lvl, fn: name, args, kwargs, error: err, elapsedMs }));
+          }
+          throw err;
+        }
+      } else {
+        try {
+          const result = fn(...args);
+          const elapsedMs = profile ? performance.now() - t0 : undefined;
+          if (shouldLog(...args)) {
+            emitAll(handlers, buildRecord({ level: lvl, fn: name, args, kwargs, result, elapsedMs }));
+          }
+          return result;
+        } catch (err) {
+          const elapsedMs = profile ? performance.now() - t0 : undefined;
+          if (shouldLog(...args)) {
+            emitAll(handlers, buildRecord({ level: lvl, fn: name, args, kwargs, error: err, elapsedMs }));
+          }
+          throw err;
+        }
+      }
+    }
+ 
+    async function asyncWrapper(...args) {
+      const kwargs = {};
+      const t0 = profile ? performance.now() : null;
+ 
+      if (lvl === LogLevel.ERROR) {
+        try {
+          const result = await fn(...args);
+          return result;
+        } catch (err) {
+          const elapsedMs = profile ? performance.now() - t0 : undefined;
+          if (shouldLog(...args)) {
+            emitAll(handlers, buildRecord({ level: lvl, fn: name, args, kwargs, error: err, elapsedMs }));
+          }
+          throw err;
+        }
+      } else {
+        try {
+          const result = await fn(...args);
+          const elapsedMs = profile ? performance.now() - t0 : undefined;
+          if (shouldLog(...args)) {
+            emitAll(handlers, buildRecord({ level: lvl, fn: name, args, kwargs, result, elapsedMs }));
+          }
+          return result;
+        } catch (err) {
+          const elapsedMs = profile ? performance.now() - t0 : undefined;
+          if (shouldLog(...args)) {
+            emitAll(handlers, buildRecord({ level: lvl, fn: name, args, kwargs, error: err, elapsedMs }));
+          }
+          throw err;
+        }
+      }
+    }
+ 
+    const wrapper = isAsync ? asyncWrapper : syncWrapper;
+    Object.defineProperty(wrapper, "name", { value: name });
+    return wrapper;
+  };
+}
