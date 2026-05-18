@@ -155,3 +155,53 @@ function log({
     return wrapper;
   };
 }
+
+const add = log({ level: "INFO" })(
+  function add(a, b) { return a + b; }
+);
+ r
+const multiply = log({
+  level: "DEBUG",
+  handlers: [new ConsoleHandler(new JSONFormatter())],
+})(
+  function multiply(x, y) { return x * y; }
+);
+ 
+const divide = log({ level: "ERROR" })(
+  function divide(a, b) {
+    if (b === 0) throw new Error("Cannot divide by zero");
+    return a / b;
+  }
+);
+ 
+const fetchData = log({ level: "INFO", profile: true })(
+  async function fetchData(url) {
+    await new Promise(r => setTimeout(r, 50));
+    return `<response from ${url}>`;
+  }
+);
+ 
+const maybeLog = log({
+  level: "DEBUG",
+  condition: (x, threshold = 0) => x > threshold,
+})(
+  function maybeLog(x, threshold = 0) { return `value=${x}`; }
+);
+ 
+const process_ = log({
+  level: "INFO",
+  handlers: [new ConsoleHandler(), new FileHandler("/tmp/app.log")],
+})(
+  function process_(data) {
+    return `processed ${Object.keys(data).length} keys`;
+  }
+);
+ 
+const structuredExample = log({
+  level: "INFO",
+  handlers: [new ConsoleHandler(new JSONFormatter())],
+})(
+  function structuredExample(name, value) {
+    return { name, doubled: value * 2 };
+  }
+);
