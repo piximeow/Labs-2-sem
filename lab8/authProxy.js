@@ -92,4 +92,69 @@ class RateLimiter {
     this._timestamps.push(Date.now());
   }
 }
+
+class AuthProxy {
+  constructor({ auth, baseUrl = "", rateLimiter = null, timeout = 10000 }) {
+    this._auth = auth;
+    this._baseUrl = baseUrl.replace(/\/$/, "");
+    this._rateLimiter = rateLimiter;
+    this._timeout = timeout;
+    this._requestCount = 0;
+  }
+ 
+  switchAuth(newStrategy) {
+    console.log(`[AuthProxy] Switching auth to ${newStrategy.constructor.name}`);
+    this._auth = newStrategy;
+  }
+ 
+  async request(method, path, { headers = {}, body = null } = {}) {
+    if (this._rateLimiter) await this._rateLimiter.acquire();
+ 
+    const url = path.startsWith("http") ? path : this._baseUrl + path;
+    this._requestCount++;
+ 
+    const authHeaders = this._auth.getHeadersAsync
+      ? await this._auth.getHeadersAsync()
+      : this._auth.getHeaders();
+ 
+    const allHeaders = {
+      "Content-Type": "application/json",
+      ...authHeaders,
+      ...headers,
+    };
+ 
+    const masked = Object.fromEntries(
+      Object.entries(allHeaders).map(([k, v]) =>
+        [k, /key|auth/i.test(k) ? "***" : v]
+      )
+    );
+    console.log(`[#${this._requestCount}] ${method.toUpperCase()} ${url}`);
+    console.log("  Headers:", masked);
+ 
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this._timeout);
+ 
+    try {
+      const res = await fetch(url, {
+        method: method.toUpperCase(),
+        headers: allHeaders,
+        body: body ? JSON.stringify(body) : undefined,
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+ 
+      const text = await res.text();
+      const json = text ? JSON.parse(text) : {};
+      console.log(`  → ${res.status} ${res.statusText}`);
+      return { status: res.status, body: json };
+    } catch (err) {
+      clearTimeout(timer);
+      console.error(`  → Request failed: ${err.message}`);
+      return { status: null, error: err.message };
+    }
+  }
+ 
+  get(path, opts) { return this.request("GET", path, opts); }
+  post(path, body, opts) { return this.request("POST", path, { ...opts, body }); }
+}
  
