@@ -158,3 +158,60 @@ class AuthProxy {
   post(path, body, opts) { return this.request("POST", path, { ...opts, body }); }
 }
  
+async function demo() {
+  const sep = title => console.log(`\n${"=".repeat(55)}\n  ${title}\n${"=".repeat(55)}`);
+ 
+  sep("1. API Key Authentication");
+  const proxy = new AuthProxy({
+    auth: new APIKeyAuth("my-secret-key-123"),
+    baseUrl: "https://httpbin.org",
+    rateLimiter: new RateLimiter(5, 1000),
+  });
+  let res = await proxy.get("/get");
+  console.log("  Status:", res.status);
+  console.log("  X-API-Key echoed:", res.body?.headers?.["X-Api-Key"] ?? "n/a");
+ 
+  sep("2. JWT Authentication");
+  proxy.switchAuth(new JWTAuth("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.demo"));
+  res = await proxy.get("/get");
+  console.log("  Status:", res.status);
+  const auth = res.body?.headers?.Authorization ?? "n/a";
+  console.log("  Authorization echoed:", auth.slice(0, 40) + "…");
+ 
+  sep("3. OAuth with auto-refresh (5s expiry)");
+  const oauth = new OAuthAuth({
+    clientId: "client_001",
+    clientSecret: "secret",
+    tokenUrl: "https://auth.example.com/token",
+    expiresIn: 5,
+  });
+  proxy.switchAuth(oauth);
+  res = await proxy.get("/get");
+  console.log("  First request status:", res.status);
+  console.log("  Waiting 6s for token to expire…");
+  await new Promise(r => setTimeout(r, 6000));
+  res = await proxy.get("/get");
+  console.log("  Second request status (after refresh):", res.status);
+ 
+  sep("4. POST with JSON body");
+  proxy.switchAuth(new APIKeyAuth("demo-key"));
+  res = await proxy.post("/post", { user: "alice", action: "login" });
+  console.log("  Status:", res.status);
+  console.log("  Body echoed:", res.body?.json);
+ 
+  sep("5. Rate limiting (3 calls/sec)");
+  const limited = new AuthProxy({
+    auth: new APIKeyAuth("key"),
+    baseUrl: "https://httpbin.org",
+    rateLimiter: new RateLimiter(3, 1000),
+  });
+  const start = Date.now();
+  for (let i = 0; i < 5; i++) await limited.get("/get");
+  console.log(`  5 calls took ${Date.now() - start}ms (expected ≥1000ms)`);
+ 
+  sep("Done");
+  console.log(`  Total proxy requests: ${proxy._requestCount}`);
+}
+ 
+demo().catch(console.error);
+ 
